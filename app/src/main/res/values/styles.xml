@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.ImmersiveWeather" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#101B36</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_weather_foreground</item>
+        <item name="postSplashScreenTheme">@android:style/Theme.Material.Light.NoActionBar</item>
+    </style>
+</resources>
