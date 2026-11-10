@@ -1,3 +1,4 @@
+
 package com.immersiveweather.app.ui
 
 import android.annotation.SuppressLint
@@ -38,7 +39,9 @@ import kotlin.math.sin
 
 private enum class Page { HOME, HOURLY, WEEK, RADAR, CITIES, SETTINGS }
 
-private fun words(ar: String, en: String, lang: String) = if (lang == "ar") ar else en
+private fun words(ar: String, en: String, lang: String) =
+    if (lang == "ar") ar else en
+
 fun weatherLabel(code: Int, lang: String = "ar"): String = when (code) {
     0 -> words("سماء صافية", "Clear sky", lang)
     1 -> words("غالباً صافٍ", "Mainly clear", lang)
@@ -53,90 +56,208 @@ fun weatherLabel(code: Int, lang: String = "ar"): String = when (code) {
     in 95..99 -> words("عواصف رعدية", "Thunderstorm", lang)
     else -> words("حالة جوية متغيرة", "Changing conditions", lang)
 }
+
 private fun weatherGlyph(code: Int) = when (code) {
-    0 -> "☀"; 1, 2 -> "🌤"; 3 -> "☁"; in 45..48 -> "🌫"; in 51..67, in 80..82 -> "🌧"
-    in 71..77, in 85..86 -> "❄"; in 95..99 -> "⛈"; else -> "◌"
+    0 -> "☀"
+    1, 2 -> "🌤"
+    3 -> "☁"
+    in 45..48 -> "🌫"
+    in 51..67, in 80..82 -> "🌧"
+    in 71..77, in 85..86 -> "❄"
+    in 95..99 -> "⛈"
+    else -> "◌"
 }
+
 private fun fmt(value: Number, western: Boolean): String {
     val s = value.toString()
     if (western) return s
     val digits = "٠١٢٣٤٥٦٧٨٩"
-    return s.map { if (it in '0'..'9') digits[it - '0'] else it }.joinToString("")
+    return s.map {
+        if (it in '0'..'9') digits[it - '0'] else it
+    }.joinToString("")
 }
-private fun temperature(value: Double, celsius: Boolean, western: Boolean): String {
+
+private fun temperature(
+    value: Double,
+    celsius: Boolean,
+    western: Boolean
+): String {
     val v = if (celsius) value else value * 9 / 5 + 32
     return "${fmt(v.toInt(), western)}°"
 }
 
 @Composable
-fun WeatherAtmosphere(code: Int, isDay: Boolean, animations: Boolean, lowPower: Boolean, modifier: Modifier = Modifier, temperatureC: Double? = null) {
+fun WeatherAtmosphere(
+    code: Int,
+    isDay: Boolean,
+    animations: Boolean,
+    lowPower: Boolean,
+    modifier: Modifier = Modifier,
+    temperatureC: Double? = null
+) {
     val transition = rememberInfiniteTransition(label = "sky")
-    val drift by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(if (lowPower) 18000 else 9500, easing = LinearEasing), RepeatMode.Restart), label = "drift")
+    val drift by transition.animateFloat(
+        0f, 1f,
+        infiniteRepeatable(
+            tween(
+                if (lowPower) 18000 else 9500,
+                easing = LinearEasing
+            ),
+            RepeatMode.Restart
+        ),
+        label = "drift"
+    )
+
     val rainy = code in 51..67 || code in 80..82 || code in 95..99
     val cloudy = code in 1..3 || code in 45..48 || rainy
     val cold = temperatureC != null && temperatureC < 8.0
     val hot = temperatureC != null && temperatureC > 34.0
+
     val top = if (!isDay) Color(0xFF10182D) else when {
-        rainy -> Color(0xFF293B52); cold -> Color(0xFF315A78); hot -> Color(0xFF8B573F); code in 1..3 -> Color(0xFF456B88); else -> Color(0xFF17638F)
+        rainy -> Color(0xFF293B52)
+        cold -> Color(0xFF315A78)
+        hot -> Color(0xFF8B573F)
+        code in 1..3 -> Color(0xFF456B88)
+        else -> Color(0xFF17638F)
     }
+
     val bottom = if (!isDay) Color(0xFF293D59) else when {
-        rainy -> Color(0xFF68798A); cold -> Color(0xFF8AB6CB); hot -> Color(0xFFE9A15E); code in 1..3 -> Color(0xFF9EB9C8); else -> Color(0xFFF2B56D)
+        rainy -> Color(0xFF68798A)
+        cold -> Color(0xFF8AB6CB)
+        hot -> Color(0xFFE9A15E)
+        code in 1..3 -> Color(0xFF9EB9C8)
+        else -> Color(0xFFF2B56D)
     }
+
     Canvas(modifier) {
         drawRect(Brush.verticalGradient(listOf(top, bottom), 0f, size.height))
+
         if (isDay && !rainy) {
-            drawCircle(Color(0xFFFFE6A0).copy(alpha = .65f), size.width * .105f, Offset(size.width * .78f, size.height * .19f))
-            drawCircle(Color(0xFFFFD17A).copy(alpha = .16f), size.width * .21f, Offset(size.width * .78f, size.height * .19f))
+            drawCircle(
+                Color(0xFFFFE6A0).copy(alpha = .65f),
+                size.width * .105f,
+                Offset(size.width * .78f, size.height * .19f)
+            )
+            drawCircle(
+                Color(0xFFFFD17A).copy(alpha = .16f),
+                size.width * .21f,
+                Offset(size.width * .78f, size.height * .19f)
+            )
         }
+
         if (cloudy) repeat(if (lowPower) 3 else 6) { i ->
             val dx = if (animations) drift * size.width * .22f else 0f
             val x = ((i * size.width / 4.2f + dx) % (size.width + 220f)) - 100f
             val y = size.height * (.16f + (i % 3) * .115f)
             val alpha = if (code == 3) .23f else .15f
+
             drawCircle(Color.White.copy(alpha = alpha), size.width * .135f, Offset(x, y))
             drawCircle(Color.White.copy(alpha = alpha), size.width * .105f, Offset(x + 45f, y - 13f))
         }
+
         if (animations && rainy) repeat(if (lowPower) 25 else 90) { i ->
             val x = (i * 73f + drift * 70f) % size.width
             val y = (i * 47f + drift * size.height * 1.7f) % size.height
-            drawLine(Color.White.copy(alpha = .30f), Offset(x, y), Offset(x - 6f, y + 20f), 1.4f)
+            drawLine(
+                Color.White.copy(alpha = .30f),
+                Offset(x, y),
+                Offset(x - 6f, y + 20f),
+                1.4f
+            )
         }
-        if (animations && (code in 71..77 || code in 85..86)) repeat(if (lowPower) 20 else 55) { i ->
+
+        if (animations && (code in 71..77 || code in 85..86)) repeat(
+            if (lowPower) 20 else 55
+        ) { i ->
             val x = (i * 83f + sin(drift * 6.28f + i) * 24f) % size.width
             val y = (i * 59f + drift * size.height) % size.height
             drawCircle(Color.White.copy(alpha = .75f), 2.2f + (i % 3), Offset(x, y))
         }
+
         if (animations && code in 95..99 && sin(drift * 18.84f) > .96f) {
-            val bolt = Path().apply { moveTo(size.width * .72f, size.height * .13f); lineTo(size.width * .65f, size.height * .27f); lineTo(size.width * .71f, size.height * .27f); lineTo(size.width * .62f, size.height * .42f) }
-            drawPath(bolt, Color.White.copy(alpha = .85f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 5f))
+            val bolt = Path().apply {
+                moveTo(size.width * .72f, size.height * .13f)
+                lineTo(size.width * .65f, size.height * .27f)
+                lineTo(size.width * .71f, size.height * .27f)
+                lineTo(size.width * .62f, size.height * .42f)
+            }
+            drawPath(
+                bolt,
+                Color.White.copy(alpha = .85f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 5f)
+            )
         }
     }
 }
 
 @Composable
 fun WeatherApp(
-    data: WeatherBundle?, loading: Boolean, error: String?, language: String,
-    celsius: Boolean, kmh: Boolean, westernNumerals: Boolean, animations: Boolean,
-    lowPower: Boolean, sound: Boolean, theme: String, savedCities: List<City>, currentCity: City,
-    onRefresh: () -> Unit, onSearch: (String) -> Unit, onSelectCity: (City) -> Unit,
-    onSaveCity: (City) -> Unit, onRemoveCity: (City) -> Unit,
-    onLanguage: (String) -> Unit, onCelsius: (Boolean) -> Unit, onKmh: (Boolean) -> Unit,
-    onWestern: (Boolean) -> Unit, onAnimations: (Boolean) -> Unit, onLowPower: (Boolean) -> Unit,
-    onSound: (Boolean) -> Unit, onTheme: (String) -> Unit
+    data: WeatherBundle?,
+    loading: Boolean,
+    error: String?,
+    language: String,
+    celsius: Boolean,
+    kmh: Boolean,
+    westernNumerals: Boolean,
+    animations: Boolean,
+    lowPower: Boolean,
+    sound: Boolean,
+    theme: String,
+    savedCities: List<City>,
+    currentCity: City,
+    onRefresh: () -> Unit,
+    onSearch: (String) -> Unit,
+    onSelectCity: (City) -> Unit,
+    onSaveCity: (City) -> Unit,
+    onRemoveCity: (City) -> Unit,
+    onLanguage: (String) -> Unit,
+    onCelsius: (Boolean) -> Unit,
+    onKmh: (Boolean) -> Unit,
+    onWestern: (Boolean) -> Unit,
+    onAnimations: (Boolean) -> Unit,
+    onLowPower: (Boolean) -> Unit,
+    onSound: (Boolean) -> Unit,
+    onTheme: (String) -> Unit
 ) {
     var page by remember { mutableStateOf(Page.HOME) }
     var searchOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
+
     val rtl = language == "ar"
-    val dark = when (theme) { "light" -> false; "system" -> isSystemInDarkTheme(); else -> true }
+    val dark = when (theme) {
+        "light" -> false
+        "system" -> isSystemInDarkTheme()
+        else -> true
+    }
+
     val textColor = if (dark) Color.White else Color(0xFF182B3B)
     val backgroundColor = if (dark) Color(0xFF101A2A) else Color(0xFFEAF2F6)
-    CompositionLocalProvider(LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr) {
-        MaterialTheme(colorScheme = if (dark) darkColorScheme(primary = Color(0xFF9EDCFF), surface = Color(0xFF1C3044), background = backgroundColor) else lightColorScheme(primary = Color(0xFF176B91), surface = Color.White, background = backgroundColor)) {
+
+    CompositionLocalProvider(
+        LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+    ) {
+        MaterialTheme(
+            colorScheme = if (dark)
+                darkColorScheme(
+                    primary = Color(0xFF9EDCFF),
+                    surface = Color(0xFF1C3044),
+                    background = backgroundColor
+                )
+            else
+                lightColorScheme(
+                    primary = Color(0xFF176B91),
+                    surface = Color.White,
+                    background = backgroundColor
+                )
+        ) {
             Scaffold(
                 containerColor = backgroundColor,
                 bottomBar = {
-                    NavigationBar(containerColor = if (dark) Color(0xFF101A2A).copy(.96f) else Color.White) {
+                    NavigationBar(
+                        containerColor = if (dark)
+                            Color(0xFF101A2A).copy(.96f)
+                        else Color.White
+                    ) {
                         val entries = listOf(
                             Triple(Page.HOME, Icons.Default.Home, words("الرئيسية", "Home", language)),
                             Triple(Page.HOURLY, Icons.Default.Schedule, words("الساعات", "Hourly", language)),
@@ -145,288 +266,240 @@ fun WeatherApp(
                             Triple(Page.CITIES, Icons.Default.LocationCity, words("المدن", "Cities", language)),
                             Triple(Page.SETTINGS, Icons.Default.Settings, words("الإعدادات", "Settings", language))
                         )
+
                         entries.forEach { (target, icon, label) ->
-                            NavigationBarItem(selected = page == target, onClick = { page = target }, icon = { Icon(icon, contentDescription = label) }, label = { Text(label, fontSize = 9.sp) }, alwaysShowLabel = true)
+                            NavigationBarItem(
+                                selected = page == target,
+                                onClick = { page = target },
+                                icon = { Icon(icon, contentDescription = label) },
+                                label = { Text(label, fontSize = 9.sp) },
+                                alwaysShowLabel = true
+                            )
                         }
                     }
                 }
             ) { padding ->
                 Box(Modifier.fillMaxSize().padding(padding)) {
                     if (page == Page.HOME || page == Page.HOURLY || page == Page.WEEK) {
-                        WeatherAtmosphere(data?.current?.weatherCode ?: 0, data?.current?.isDay ?: true, animations, lowPower, Modifier.fillMaxSize(), data?.current?.temperature)
+                        WeatherAtmosphere(
+                            data?.current?.weatherCode ?: 0,
+                            data?.current?.isDay ?: true,
+                            animations,
+                            lowPower,
+                            Modifier.fillMaxSize(),
+                            data?.current?.temperature
+                        )
                     }
+
                     when (page) {
-                        Page.HOME -> HomePage(data, loading, error, language, celsius, kmh, westernNumerals, textColor, currentCity,
-                            onRefresh, { searchOpen = true }, { data?.let { onSaveCity(currentCity) } })
+                        Page.HOME -> HomePage(
+                            data, loading, error, language, celsius, kmh,
+                            westernNumerals, textColor, currentCity,
+                            onRefresh,
+                            { searchOpen = true },
+                            { data?.let { onSaveCity(currentCity) } }
+                        )
+
                         Page.HOURLY -> HourlyPage(data, language, celsius, westernNumerals, textColor)
                         Page.WEEK -> WeekPage(data, language, celsius, westernNumerals, textColor)
                         Page.RADAR -> RadarPage(data, language, textColor)
-                        Page.CITIES -> CitiesPage(savedCities, currentCity, language, textColor, onSelectCity, onRemoveCity, { searchOpen = true })
-                        Page.SETTINGS -> SettingsPage(language, celsius, kmh, westernNumerals, animations, lowPower, sound, theme, textColor,
-                            onLanguage, onCelsius, onKmh, onWestern, onAnimations, onLowPower, onSound, onTheme)
+
+                        Page.CITIES -> CitiesPage(
+                            savedCities, currentCity, language, textColor,
+                            onSelectCity, onRemoveCity, { searchOpen = true }
+                        )
+
+                        Page.SETTINGS -> SettingsPage(
+                            language, celsius, kmh, westernNumerals,
+                            animations, lowPower, sound, theme, textColor,
+                            onLanguage, onCelsius, onKmh, onWestern,
+                            onAnimations, onLowPower, onSound, onTheme
+                        )
                     }
-                    if (loading && data != null) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter), color = Color(0xFFB5E7FF))
-                    if (searchOpen) AlertDialog(
-                        onDismissRequest = { searchOpen = false },
-                        title = { Text(words("ابحث عن مدينة", "Search for a city", language)) },
-                        text = { OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text(words("اسم المدينة", "City name", language)) }, singleLine = true) },
-                        confirmButton = { TextButton(onClick = { if (query.isNotBlank()) onSearch(query); searchOpen = false; query = "" }) { Text(words("بحث", "Search", language)) } },
-                        dismissButton = { TextButton(onClick = { searchOpen = false }) { Text(words("إلغاء", "Cancel", language)) } }
+
+                    if (loading && data != null) {
+                        LinearProgressIndicator(
+                            Modifier.fillMaxWidth().align(Alignment.TopCenter),
+                            color = Color(0xFFB5E7FF)
+                        )
+                    }
+
+                    if (searchOpen) {
+                        AlertDialog(
+                            onDismissRequest = { searchOpen = false },
+                            title = {
+                                Text(words("ابحث عن مدينة", "Search for a city", language))
+                            },
+                            text = {
+                                OutlinedTextField(
+                                    value = query,
+                                    onValueChange = { query = it },
+                                    label = {
+                                        Text(words("اسم المدينة", "City name", language))
+                                    },
+                                    singleLine = true
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    if (query.isNotBlank()) onSearch(query)
+                                    searchOpen = false
+                                    query = ""
+                                }) {
+                                    Text(words("بحث", "Search", language))
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { searchOpen = false }) {
+                                    Text(words("إلغاء", "Cancel", language))
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomePage(
+    data: WeatherBundle?,
+    loading: Boolean,
+    error: String?,
+    lang: String,
+    celsius: Boolean,
+    kmh: Boolean,
+    western: Boolean,
+    color: Color,
+    city: City,
+    refresh: () -> Unit,
+    search: () -> Unit,
+    save: () -> Unit
+) {
+    if (data == null) {
+        Column(
+            Modifier.fillMaxSize().padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("IMMERSIVE WEATHER", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(22.dp))
+            if (loading) CircularProgressIndicator(color = Color.White)
+            Text(
+                error ?: words("جارٍ تحميل بيانات الطقس…", "Loading live weather…", lang),
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = refresh) {
+                Text(words("إعادة المحاولة", "Try again", lang))
+            }
+        }
+        return
+    }
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 22.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.LocationOn, null, tint = Color.White)
+                        Text(
+                            "${data.city}${if (data.country.isNotBlank()) ", ${data.country}" else ""}",
+                            color = Color.White,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Text(
+                        "${data.current.time.replace('T', ' ')}  •  ${data.timezone}",
+                        color = Color.White.copy(.7f),
+                        fontSize = 11.sp
+                    )
+                }
+                IconButton(onClick = search) {
+                    Icon(Icons.Default.Search, words("بحث", "Search", lang), tint = Color.White)
+                }
+                IconButton(onClick = save) {
+                    Icon(Icons.Default.BookmarkAdd, words("حفظ المدينة", "Save city", lang), tint = Color.White)
+                }
+                IconButton(onClick = refresh) {
+                    Icon(Icons.Default.Refresh, words("تحديث", "Refresh", lang), tint = Color.White)
+                }
+            }
+        }
+
+        item {
+            Column(
+                Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(weatherLabel(data.current.weatherCode, lang), color = Color.White.copy(.95f), fontSize = 20.sp)
+                Text(weatherGlyph(data.current.weatherCode), fontSize = 48.sp)
+                Text(
+                    temperature(data.current.temperature, celsius, western),
+                    color = Color.White,
+                    fontSize = 104.sp,
+                    fontWeight = FontWeight.ExtraLight,
+                    lineHeight = 108.sp
+                )
+                Text(
+                    "${words("المحسوسة", "Feels like", lang)} ${temperature(data.current.feelsLike, celsius, western)}",
+                    color = Color.White.copy(.9f),
+                    fontSize = 14.sp
+                )
+                val today = data.days.firstOrNull()
+                if (today != null) {
+                    Text(
+                        "${words("العظمى", "High", lang)} ${temperature(today.max, celsius, western)}   •   ${words("الصغرى", "Low", lang)} ${temperature(today.min, celsius, western)}",
+                        color = Color.White.copy(.85f),
+                        fontSize = 13.sp
                     )
                 }
             }
         }
-    }
-}
 
-@Composable private fun HomePage(data: WeatherBundle?, loading: Boolean, error: String?, lang: String, celsius: Boolean, kmh: Boolean, western: Boolean, color: Color, city: City, refresh: () -> Unit, search: () -> Unit, save: () -> Unit) {
-    if (data == null) {
-        Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text("IMMERSIVE WEATHER", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(22.dp)); if (loading) CircularProgressIndicator(color = Color.White)
-            Text(error ?: words("جارٍ تحميل بيانات الطقس…", "Loading live weather…", lang), color = Color.White, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(16.dp)); Button(onClick = refresh) { Text(words("إعادة المحاولة", "Try again", lang)) }
-        }
-        return
-    }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocationOn, null, tint = Color.White); Text("${data.city}${if (data.country.isNotBlank()) ", ${data.country}" else ""}", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.SemiBold) }
-                    Text("${data.current.time.replace('T', ' ')}  •  ${data.timezone}", color = Color.White.copy(.7f), fontSize = 11.sp)
-                }
-                IconButton(onClick = search) { Icon(Icons.Default.Search, words("بحث", "Search", lang), tint = Color.White) }
-                IconButton(onClick = save) { Icon(Icons.Default.BookmarkAdd, words("حفظ المدينة", "Save city", lang), tint = Color.White) }
-                IconButton(onClick = refresh) { Icon(Icons.Default.Refresh, words("تحديث", "Refresh", lang), tint = Color.White) }
-            }
-        }
-        item {
-            Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(weatherLabel(data.current.weatherCode, lang), color = Color.White.copy(.95f), fontSize = 20.sp)
-                Text(weatherGlyph(data.current.weatherCode), fontSize = 48.sp)
-                Text(temperature(data.current.temperature, celsius, western), color = Color.White, fontSize = 104.sp, fontWeight = FontWeight.ExtraLight, lineHeight = 108.sp)
-                Text("${words("المحسوسة", "Feels like", lang)} ${temperature(data.current.feelsLike, celsius, western)}", color = Color.White.copy(.9f), fontSize = 14.sp)
-                val today = data.days.firstOrNull()
-                if (today != null) Text("${words("العظمى", "High", lang)} ${temperature(today.max, celsius, western)}   •   ${words("الصغرى", "Low", lang)} ${temperature(today.min, celsius, western)}", color = Color.White.copy(.85f), fontSize = 13.sp)
-            }
-        }
-        item { GlassPanel { Column(Modifier.padding(16.dp)) {
-            Text(words("توقعات الساعات القادمة", "Next hours", lang), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(14.dp)); Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                data.hours.take(12).forEach { hour -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(hour.time.substringAfter('T').take(5), color = Color.White.copy(.8f), fontSize = 11.sp)
-                    Text(weatherGlyph(hour.code), fontSize = 21.sp)
-                    Text(temperature(hour.temperature, celsius, western), color = Color.White, fontWeight = FontWeight.SemiBold)
-                    Text("${fmt(hour.precipitation, western)}%", color = Color(0xFFB9DDFB), fontSize = 10.sp)
-                } }
-            }
-        } } }
-        item { Text(words("تفاصيل الطقس", "Weather details", lang), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Metric(words("الرطوبة", "Humidity", lang), "${fmt(data.current.humidity, western)}%", Modifier.weight(1f))
-            Metric(words("الرياح", "Wind", lang), "${fmt(if (kmh) data.current.windSpeed else data.current.windSpeed / 3.6, western)} ${if (kmh) "km/h" else "m/s"}", Modifier.weight(1f))
-        } }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Metric(words("هبات الرياح", "Wind gusts", lang), "${fmt(if (kmh) data.current.windGusts else data.current.windGusts / 3.6, western)} ${if (kmh) "km/h" else "m/s"}", Modifier.weight(1f))
-            Metric(words("الضغط الجوي", "Pressure", lang), "${fmt(data.current.pressure.toInt(), western)} hPa", Modifier.weight(1f))
-        } }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Metric(words("مؤشر UV", "UV index", lang), fmt(data.current.uv, western), Modifier.weight(1f))
-            Metric(words("الرؤية", "Visibility", lang), "${fmt((data.current.visibility / 1000).toInt(), western)} km", Modifier.weight(1f))
-        } }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Metric(words("نقطة الندى", "Dew point", lang), temperature(data.current.dewPoint, celsius, western), Modifier.weight(1f))
-            Metric(words("الغيوم", "Cloud cover", lang), "${fmt(data.current.cloudCover, western)}%", Modifier.weight(1f))
-        } }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Metric(words("الهطول الحالي", "Precipitation", lang), "${fmt(data.current.precipitation, western)} mm", Modifier.weight(1f))
-            Metric(words("اتجاه الرياح", "Wind direction", lang), "${fmt(data.current.windDirection, western)}°", Modifier.weight(1f))
-        } }
-        item { GlassPanel { Column(Modifier.padding(16.dp)) {
-            Text(words("الشروق والغروب", "Sunrise & sunset", lang), color = Color.White, fontWeight = FontWeight.Bold)
-            val today = data.days.firstOrNull()
-            if (today != null) Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("☀  ${words("الشروق", "Sunrise", lang)}  ${today.sunrise.substringAfter('T')}", color = Color.White)
-                Text("☾  ${words("الغروب", "Sunset", lang)}  ${today.sunset.substringAfter('T')}", color = Color.White)
-            }
-        } } }
-        item {
-            GlassPanel { Column(Modifier.padding(16.dp)) {
-                Text(words("جودة الهواء", "Air quality", lang), color = Color.White, fontWeight = FontWeight.Bold)
-                val air = data.airQuality
-                if (air == null) Text(words("بيانات جودة الهواء غير متاحة حالياً", "Air quality data is currently unavailable", lang), color = Color.White.copy(.75f), modifier = Modifier.padding(top = 8.dp))
-                else Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Metric(words("مؤشر US AQI", "US AQI", lang), air.usAqi?.let { fmt(it, western) } ?: "—")
-                    Metric("PM2.5", air.pm25?.let { fmt(it, western) } ?: "—")
-                    Metric("PM10", air.pm10?.let { fmt(it, western) } ?: "—")
-                }
-            } }
-        }
-        item { Text(words("المصدر: Open-Meteo. بعض القياسات قد لا تتوفر لكل المواقع.", "Source: Open-Meteo. Some measurements may be unavailable in certain locations.", lang), color = Color.White.copy(.65f), fontSize = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
-    }
-}
-
-@Composable private fun HourlyPage(data: WeatherBundle?, lang: String, celsius: Boolean, western: Boolean, color: Color) {
-    if (data == null) { EmptyState(lang, color); return }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Text(words("توقعات 24 ساعة", "24-hour forecast", lang), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold) }
-        item { GlassPanel { Column(Modifier.padding(16.dp)) {
-            Text(words("منحنى درجات الحرارة", "Temperature trend", lang), color = Color.White, fontWeight = FontWeight.Bold)
-            TemperatureChart(data.hours.map { it.temperature }, Color.White)
-        } } }
-        items(data.hours) { h -> GlassPanel { Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(h.time.substringAfter('T').take(5), color = Color.White, modifier = Modifier.weight(1f))
-            Text(weatherGlyph(h.code), fontSize = 23.sp, modifier = Modifier.weight(.6f), textAlign = TextAlign.Center)
-            Text(temperature(h.temperature, celsius, western), color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(.8f), textAlign = TextAlign.Center)
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                Text("${fmt(h.precipitation, western)}%", color = Color(0xFFB9DDFB), fontSize = 12.sp)
-                Text("${fmt(h.wind.toInt(), western)} km/h", color = Color.White.copy(.7f), fontSize = 10.sp)
-            }
-        } } }
-    }
-}
-
-@Composable private fun WeekPage(data: WeatherBundle?, lang: String, celsius: Boolean, western: Boolean, color: Color) {
-    if (data == null) { EmptyState(lang, color); return }
-    var expanded by remember { mutableStateOf(-1) }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Text(words("توقعات 7 أيام", "7-day forecast", lang), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold) }
-        items(data.days.size) { index ->
-            val day = data.days[index]
-            GlassPanel { Column(Modifier.fillMaxWidth()) {
-                TextButton(onClick = { expanded = if (expanded == index) -1 else index }, modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(day.date, color = Color.White, modifier = Modifier.weight(1f))
-                        Text(weatherGlyph(day.code), fontSize = 22.sp, modifier = Modifier.weight(.5f), textAlign = TextAlign.Center)
-                        Text(temperature(day.min, celsius, western), color = Color.White.copy(.7f), modifier = Modifier.weight(.5f), textAlign = TextAlign.Center)
-                        Text(temperature(day.max, celsius, western), color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(.5f), textAlign = TextAlign.End)
+            GlassPanel {
+                Column(Modifier.padding(16.dp)) {
+                    Text(words("توقعات الساعات القادمة", "Next hours", lang), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        data.hours.take(12).forEach { hour ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(hour.time.substringAfter('T').take(5), color = Color.White.copy(.8f), fontSize = 11.sp)
+                                Text(weatherGlyph(hour.code), fontSize = 21.sp)
+                                Text(temperature(hour.temperature, celsius, western), color = Color.White, fontWeight = FontWeight.SemiBold)
+                                Text("${fmt(hour.precipitation, western)}%", color = Color(0xFFB9DDFB), fontSize = 10.sp)
+                            }
+                        }
                     }
                 }
-                if (expanded == index) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("☂ ${words("احتمال المطر", "Rain chance", lang)} ${fmt(day.precipitation, western)}%", color = Color.White.copy(.8f), fontSize = 12.sp)
-                    Text("UV ${fmt(day.uvMax, western)}", color = Color.White.copy(.8f), fontSize = 12.sp)
-                }
-                if (expanded == index) Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("☀ ${words("الشروق", "Sunrise", lang)} ${day.sunrise.substringAfter('T')}", color = Color.White, fontSize = 12.sp)
-                    Text("☾ ${words("الغروب", "Sunset", lang)} ${day.sunset.substringAfter('T')}", color = Color.White, fontSize = 12.sp)
-                }
-            } }
-        }
-    }
-}
-
-@SuppressLint("SetJavaScriptEnabled")
-@Composable private fun RadarPage(data: WeatherBundle?, lang: String, color: Color) {
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text(words("رادار الأمطار", "Rain radar", lang), color = color, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text(words("خريطة تفاعلية • طبقة الرادار من RainViewer", "Interactive map • Radar layer by RainViewer", lang), color = color.copy(.7f), fontSize = 12.sp, modifier = Modifier.padding(bottom = 10.dp))
-        AndroidView(
-            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)),
-            factory = { context -> WebView(context).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                webChromeClient = WebChromeClient(); webViewClient = WebViewClient()
-                val lat = data?.latitude ?: 30.5085; val lon = data?.longitude ?: 47.7804
-                tag = "$lat,$lon"
-                loadDataWithBaseURL("https://openstreetmap.org", radarHtml(lat, lon), "text/html", "UTF-8", null)
-            } },
-            update = { view ->
-                val lat = data?.latitude ?: 30.5085; val lon = data?.longitude ?: 47.7804
-                val key = "$lat,$lon"
-                if (view.tag != key) { view.tag = key; view.loadDataWithBaseURL("https://openstreetmap.org", radarHtml(lat, lon), "text/html", "UTF-8", null) }
             }
-        )
-    }
-}
-
-private fun radarHtml(lat: Double, lon: Double) = """<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;margin:0;background:#172638} .leaflet-control-attribution{font-size:9px}</style></head><body><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
-const map=L.map('map').setView([$lat,$lon],7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
-let frames=[],idx=0,radar=null,timer=null,host='';const ctl=L.control({position:'topright'});ctl.onAdd=function(){let d=L.DomUtil.create('div','leaflet-bar');d.style.background='white';d.style.padding='6px';d.innerHTML='<button id="play">▶ Play radar</button>';L.DomEvent.disableClickPropagation(d);return d};ctl.addTo(map);
-function show(i){if(!frames.length)return;idx=(i+frames.length)%frames.length;let f=frames[idx];if(radar)map.removeLayer(radar);radar=L.tileLayer(host+f.path+'/256/{z}/{x}/{y}/2/1_1.png',{opacity:0.62,attribution:'Radar © RainViewer',maxZoom:12}).addTo(map)}
-fetch('https://api.rainviewer.com/public/weather-maps.json').then(r=>r.json()).then(d=>{frames=(d.radar&&d.radar.past)||[];host=d.host;if(frames.length)show(frames.length-1);}).catch(()=>{});
-document.addEventListener('click',e=>{if(e.target&&e.target.id==='play'){if(timer){clearInterval(timer);timer=null;e.target.innerText='▶ Play radar'}else{timer=setInterval(()=>show(idx+1),700);e.target.innerText='Ⅱ Pause radar'}}});
-</script></body></html>"""
-
-@Composable private fun CitiesPage(cities: List<City>, current: City, lang: String, color: Color, select: (City) -> Unit, remove: (City) -> Unit, search: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(words("المدن المحفوظة", "Saved cities", lang), color = color, fontSize = 23.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            IconButton(onClick = search) { Icon(Icons.Default.AddLocationAlt, null, tint = color) }
         }
-        Text(words("الموقع الحالي", "Current location", lang), color = color.copy(.7f), fontSize = 12.sp, modifier = Modifier.padding(vertical = 12.dp))
-        CityRow(current, lang, color, false, { select(current) }, {})
-        if (cities.isEmpty()) Text(words("احفظ المدن التي تهمك من الصفحة الرئيسية.", "Save places you care about from the home screen.", lang), color = color.copy(.7f), modifier = Modifier.padding(top = 20.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 10.dp)) {
-            items(cities) { city -> CityRow(city, lang, color, true, { select(city) }, { remove(city) }) }
+
+        item {
+            Text(words("تفاصيل الطقس", "Weather details", lang), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
-    }
-}
-@Composable private fun CityRow(city: City, lang: String, color: Color, removable: Boolean, select: () -> Unit, remove: () -> Unit) {
-    GlassPanel { Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f).padding(vertical = 12.dp)) { Text(city.name, color = color, fontWeight = FontWeight.SemiBold); Text(city.country, color = color.copy(.65f), fontSize = 11.sp) }
-        TextButton(onClick = select) { Text(words("عرض", "Open", lang)) }
-        if (removable) IconButton(onClick = remove) { Icon(Icons.Default.DeleteOutline, null, tint = color.copy(.8f)) }
-    } }
-}
 
-@Composable private fun SettingsPage(lang: String, celsius: Boolean, kmh: Boolean, western: Boolean, animations: Boolean, lowPower: Boolean, sound: Boolean, theme: String, color: Color,
-    onLanguage: (String) -> Unit, onCelsius: (Boolean) -> Unit, onKmh: (Boolean) -> Unit, onWestern: (Boolean) -> Unit, onAnimations: (Boolean) -> Unit, onLowPower: (Boolean) -> Unit, onSound: (Boolean) -> Unit, onTheme: (String) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item { Text(words("الإعدادات والتخصيص", "Settings & personalization", lang), color = color, fontSize = 23.sp, fontWeight = FontWeight.Bold) }
-        item { SettingGroup(words("اللغة والأرقام", "Language & numbers", lang), color) {
-            SettingChoice(words("لغة التطبيق", "App language", lang), color, listOf("العربية" to "ar", "English" to "en"), if (lang == "ar") "ar" else "en", onLanguage)
-            SettingSwitch(words("الأرقام الغربية (123)", "Western numerals (123)", lang), western, color, onWestern)
-        } }
-        item { SettingGroup(words("الوحدات", "Units", lang), color) {
-            SettingSwitch(words("درجة الحرارة مئوية (°C)", "Temperature in Celsius (°C)", lang), celsius, color, onCelsius)
-            SettingSwitch(words("سرعة الرياح كم/س", "Wind speed in km/h", lang), kmh, color, onKmh)
-        } }
-        item { SettingGroup(words("المظهر والحركة", "Appearance & motion", lang), color) {
-            SettingChoice(words("السمة", "Theme", lang), color, listOf(words("داكنة", "Dark", lang) to "dark", words("فاتحة", "Light", lang) to "light", words("تلقائية", "System", lang) to "system"), theme, onTheme)
-            SettingSwitch(words("الأنيميشن الجوية", "Weather animations", lang), animations, color, onAnimations)
-            SettingSwitch(words("توفير البطارية", "Battery saver", lang), lowPower, color, onLowPower)
-            SettingSwitch(words("تقليل الحركة", "Reduced motion", lang), !animations, color) { onAnimations(!it) }
-            SettingSwitch(words("المؤثرات الصوتية (قريباً)", "Sound effects (planned)", lang), sound, color, onSound, enabled = false)
-        } }
-        item { Text("IMMERSIVE WEATHER • 1.1.0", color = color.copy(.5f), fontSize = 11.sp, modifier = Modifier.fillMaxWidth().padding(16.dp), textAlign = TextAlign.Center) }
-    }
-}
-
-@Composable private fun SettingGroup(title: String, color: Color, content: @Composable ColumnScope.() -> Unit) {
-    GlassPanel { Column(Modifier.fillMaxWidth().padding(14.dp)) { Text(title, color = color, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 6.dp)); content() } }
-}
-@Composable private fun SettingSwitch(title: String, checked: Boolean, color: Color, change: (Boolean) -> Unit, enabled: Boolean = true) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, color = color.copy(alpha = if (enabled) 1f else .45f), modifier = Modifier.weight(1f), fontSize = 13.sp)
-        Switch(checked = checked, onCheckedChange = change, enabled = enabled)
-    }
-}
-@Composable private fun SettingChoice(title: String, color: Color, options: List<Pair<String, String>>, selected: String, change: (String) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(title, color = color, fontSize = 13.sp)
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            options.forEach { (label, value) -> FilterChip(selected = selected == value, onClick = { change(value) }, label = { Text(label) }) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Metric(words("الرطوبة", "Humidity", lang), "${fmt(data.current.humidity, western)}%", Modifier.weight(1f))
+                Metric(
+                    words("الرياح", "Wind", lang),
+                    "${fmt(if (kmh) data.current.windSpeed else data.current.windSpeed / 3.6, western)} ${if (kmh) "km/h" else "m/s"}",
+                    Modifier.weight(1f)
+                )
+            }
         }
-    }
-}
 
-@Composable private fun EmptyState(lang: String, color: Color) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(words("لا توجد بيانات بعد. حدّث الطقس أولاً.", "No weather data yet. Refresh weather first.", lang), color = color, textAlign = TextAlign.Center) }
-}
-@Composable private fun GlassPanel(content: @Composable () -> Unit) {
-    Surface(color = Color.White.copy(alpha = .13f), shape = RoundedCornerShape(22.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(.15f)), content = content)
-}
-@Composable private fun Metric(title: String, value: String, modifier: Modifier = Modifier) {
-    GlassPanel { Column(modifier.padding(13.dp)) { Text(title, color = Color.White.copy(.72f), fontSize = 11.sp); Spacer(Modifier.height(7.dp)); Text(value, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) } }
-}
-@Composable private fun TemperatureChart(values: List<Double>, color: Color) {
-    Canvas(Modifier.fillMaxWidth().height(110.dp).padding(top = 12.dp)) {
-        if (values.size < 2) return@Canvas
-        val min = (values.minOrNull() ?: 0.0).toFloat(); val max = (values.maxOrNull() ?: 1.0).toFloat().let { if (it == min) it + 1f else it }
-        val points = values.mapIndexed { i, v -> Offset(size.width * i / (values.size - 1), size.height - ((v.toFloat() - min) / (max - min)) * size.height) }
-        val path = Path().apply { moveTo(points.first().x, points.first().y); points.drop(1).forEach { lineTo(it.x, it.y) } }
-        drawPath(path, color.copy(.9f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f))
-        points.forEach { drawCircle(color, 4f, it) }
-    }
-}
+        item {
+            Row(horizontalArrangement = Arrangement
