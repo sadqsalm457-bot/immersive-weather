@@ -1,5 +1,9 @@
 package com.immersiveweather.app.ui
 
+import android.annotation.SuppressLint
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -8,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,16 +21,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.foundation.lazy.items
 import com.immersiveweather.app.model.*
 import kotlin.math.sin
 
@@ -501,4 +508,462 @@ private fun HomePage(
                     Modifier.weight(1f)
                 )
                 Metric(
-                    w
+                    words("درجة الحرارة", "Temperature", lang),
+                    temperature(data.current.temperature, celsius, western),
+                    Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GlassPanel(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color.White.copy(alpha = 0.13f)),
+        content = content
+    )
+}
+
+@Composable
+private fun Metric(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    GlassPanel(modifier = modifier) {
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                title,
+                color = Color.White.copy(alpha = 0.75f),
+                fontSize = 13.sp
+            )
+            Text(
+                value,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun HourlyPage(
+    data: WeatherBundle?,
+    lang: String,
+    celsius: Boolean,
+    western: Boolean,
+    color: Color
+) {
+    if (data == null) {
+        EmptyWeatherPage(lang, color)
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                words("توقعات الطقس بالساعة", "Hourly forecast", lang),
+                color = color,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        items(data.hours) { hour ->
+            GlassPanel {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        hour.time.substringAfter('T').take(5),
+                        color = color,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(weatherGlyph(hour.code), fontSize = 25.sp)
+                    Text(
+                        temperature(hour.temperature, celsius, western),
+                        color = color,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "${fmt(hour.precipitation, western)}%",
+                        color = color.copy(alpha = 0.75f),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeekPage(
+    data: WeatherBundle?,
+    lang: String,
+    celsius: Boolean,
+    western: Boolean,
+    color: Color
+) {
+    if (data == null) {
+        EmptyWeatherPage(lang, color)
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                words("توقعات الأيام القادمة", "7-day forecast", lang),
+                color = color,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        items(data.days) { day ->
+            GlassPanel {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        words("اليوم", "Day", lang),
+                        color = color,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "${words("العظمى", "High", lang)} ${temperature(day.max, celsius, western)}",
+                        color = color,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "${words("الصغرى", "Low", lang)} ${temperature(day.min, celsius, western)}",
+                        color = color.copy(alpha = 0.75f),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadarPage(
+    data: WeatherBundle?,
+    lang: String,
+    color: Color
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Default.Map,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(54.dp)
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            words("رادار الطقس", "Weather radar", lang),
+            color = color,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            if (data == null)
+                words("بانتظار بيانات الطقس", "Waiting for weather data", lang)
+            else
+                words(
+                    "بيانات الطقس متاحة، لكن عرض خريطة الرادار يحتاج إلى مصدر خرائط مخصص.",
+                    "Weather data is available. A dedicated map provider is needed to display radar imagery.",
+                    lang
+                ),
+            color = color.copy(alpha = 0.75f),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun CitiesPage(
+    savedCities: List<City>,
+    currentCity: City,
+    lang: String,
+    color: Color,
+    onSelectCity: (City) -> Unit,
+    onRemoveCity: (City) -> Unit,
+    onAddCity: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+    ) {
+        Text(
+            words("المدن المحفوظة", "Saved cities", lang),
+            color = color,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = onAddCity,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(words("إضافة مدينة", "Add city", lang))
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        if (savedCities.isEmpty()) {
+            Text(
+                words("ماكو مدن محفوظة حالياً", "No saved cities yet", lang),
+                color = color.copy(alpha = 0.75f)
+            )
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(savedCities) { city ->
+                    GlassPanel {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                words("مدينة محفوظة", "Saved city", lang),
+                                color = color,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = { onSelectCity(city) }) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = words("اختيار", "Select", lang),
+                                    tint = color
+                                )
+                            }
+                            IconButton(onClick = { onRemoveCity(city) }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = words("حذف", "Remove", lang),
+                                    tint = color
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsPage(
+    language: String,
+    celsius: Boolean,
+    kmh: Boolean,
+    westernNumerals: Boolean,
+    animations: Boolean,
+    lowPower: Boolean,
+    sound: Boolean,
+    theme: String,
+    color: Color,
+    onLanguage: (String) -> Unit,
+    onCelsius: (Boolean) -> Unit,
+    onKmh: (Boolean) -> Unit,
+    onWestern: (Boolean) -> Unit,
+    onAnimations: (Boolean) -> Unit,
+    onLowPower: (Boolean) -> Unit,
+    onSound: (Boolean) -> Unit,
+    onTheme: (String) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                words("الإعدادات", "Settings", language),
+                color = color,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        item {
+            GlassPanel {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        words("اللغة", "Language", language),
+                        color = color,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { onLanguage("ar") }) {
+                            Text("العربية")
+                        }
+                        TextButton(onClick = { onLanguage("en") }) {
+                            Text("English")
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            SettingSwitch(
+                words("استخدام الدرجة المئوية", "Use Celsius", language),
+                celsius,
+                color,
+                onCelsius
+            )
+        }
+        item {
+            SettingSwitch(
+                words("سرعة الرياح km/h", "Wind speed in km/h", language),
+                kmh,
+                color,
+                onKmh
+            )
+        }
+        item {
+            SettingSwitch(
+                words("الأرقام الغربية 0-9", "Western numerals 0-9", language),
+                westernNumerals,
+                color,
+                onWestern
+            )
+        }
+        item {
+            SettingSwitch(
+                words("الحركات والأنيميشن", "Animations", language),
+                animations,
+                color,
+                onAnimations
+            )
+        }
+        item {
+            SettingSwitch(
+                words("توفير الطاقة", "Low power mode", language),
+                lowPower,
+                color,
+                onLowPower
+            )
+        }
+        item {
+            SettingSwitch(
+                words("الأصوات", "Sound", language),
+                sound,
+                color,
+                onSound
+            )
+        }
+
+        item {
+            GlassPanel {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        words("المظهر", "Appearance", language),
+                        color = color,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { onTheme("system") }) {
+                            Text(words("النظام", "System", language))
+                        }
+                        TextButton(onClick = { onTheme("light") }) {
+                            Text(words("فاتح", "Light", language))
+                        }
+                        TextButton(onClick = { onTheme("dark") }) {
+                            Text(words("داكن", "Dark", language))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitch(
+    title: String,
+    checked: Boolean,
+    color: Color,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    GlassPanel {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                title,
+                color = color,
+                modifier = Modifier.weight(1f),
+                fontSize = 14.sp
+            )
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyWeatherPage(
+    lang: String,
+    color: Color
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            words("لا توجد بيانات طقس حالياً", "No weather data available", lang),
+            color = color,
+            textAlign = TextAlign.Center
+        )
+    }
+}
