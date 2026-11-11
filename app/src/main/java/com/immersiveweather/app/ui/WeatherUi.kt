@@ -1,10 +1,5 @@
-
 package com.immersiveweather.app.ui
 
-import android.annotation.SuppressLint
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -13,7 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -22,18 +16,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.foundation.lazy.items
 import com.immersiveweather.app.model.*
 import kotlin.math.sin
 
@@ -502,4 +494,11 @@ private fun HomePage(
         }
 
         item {
-            Row(horizontalArrangement = Arrangement
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Metric(
+                    words("الحرارة المحسوسة", "Feels like", lang),
+                    temperature(data.current.feelsLike, celsius, western),
+                    Modifier.weight(1f)
+                )
+                Metric(
+                    w
